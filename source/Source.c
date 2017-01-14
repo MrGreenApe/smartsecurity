@@ -8,7 +8,7 @@
 #include "openssl/rsa.h"
 #include "openssl/pem.h"
 
-#define length 1073741792
+#define length 107374179
 
 int main(int argc, char *argv[]) {
 	int  numtasks, rank, len, rc,i; 
