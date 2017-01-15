@@ -1,4 +1,3 @@
 #!/bin/bash
 
-module load libraries/openmpi-1.6-gcc-4.4.6
-mpirun ./source
+mpiexec -n 6 -hostfile hosts ./source
