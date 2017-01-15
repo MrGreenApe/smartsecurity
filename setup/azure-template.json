@@ -100,7 +100,7 @@
         "osProfile": {
           "computerName": "[variables('vmName')]",
           "adminUsername": "usr",
-          "adminPassword": "km0InKlzrPrr5q314FK3ZfTt5"
+          "adminPassword": ""
         },
         "storageProfile": {
           "osDisk": {
