@@ -80,14 +80,10 @@
                 "accountType": "Standard_LRS"
             }
         },
-        {
-            "name": "mpsitdiag",
-            "type": "Microsoft.Storage/storageAccounts",
-            "apiVersion": "2015-06-15",
-            "location": "westeurope",
-            "properties": {
-                "accountType": "Standard_LRS"
-            }
+        "osProfile": {
+          "computerName": "[variables('vmName')]",
+          "adminUsername": "usr",
+          "adminPassword": ""
         },
         {
             "name": "mpsit-vn",
@@ -208,4 +204,5 @@
             "value": "[parameters('adminUsername')]"
         }
     }
+  ]
 }

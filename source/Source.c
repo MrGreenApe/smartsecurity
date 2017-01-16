@@ -15,8 +15,8 @@ int main(int argc, char *argv[]) {
 	char hostname[MPI_MAX_PROCESSOR_NAME];
 
 	double file_gen_step1_start,file_gen_step1_stop,plain_hash_step2_start,plain_hash_step2_stop,des_step3_start,des_step3_stop,rsa_step4_start,rsa_step4_stop,cypher_hash_step5_start,cypher_hash_step5_stop;
-	unsigned char master_buffer[length];
-	unsigned char worker_buffer[length];
+	unsigned char *master_buffer;
+	unsigned char *worker_buffer;
 	unsigned char *hashstring=NULL;
 	unsigned char finalhash[48];
 
@@ -38,6 +38,9 @@ int main(int argc, char *argv[]) {
 	SHA512_CTX ctx2;
 	DES_cblock key;
 	DES_key_schedule schedule;
+
+	master_buffer=(unsigned char*)malloc(length);
+	worker_buffer=(unsigned char*)malloc(length);
 
 	if(rank==0)
 	{
@@ -204,5 +207,8 @@ int main(int argc, char *argv[]) {
 		fclose(g);
 	}
 
+	free(master_buffer);
+	free(worker_buffer);
+	free(hashstring);
 	MPI_Finalize();
 }
