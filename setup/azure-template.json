@@ -4,13 +4,7 @@
     "parameters": {
         "vmNo": {
             "type": "int"
-        },
-        "adminUsername": {
-            "type": "string"
-        },                                
-        "adminPassword": {
-            "type": "securestring"
-        },                                                
+        }                                                      
     },
     "variables": {		
 		"virtualMachineName": "[concat('smart-node',parameters('vmNo'))]",
@@ -18,7 +12,9 @@
         "subnetRef": "[concat(variables('vnetId'), '/subnets/default')]",
 		"networkInterfaceName": "[concat(variables('virtualMachineName'),'-ni')]",
 		"networkSecurityGroupName": "[concat(variables('virtualMachineName'),'-nsg')]",
-		"publicIpAddressName": "[concat(variables('virtualMachineName'),'-ip')]"
+		"publicIpAddressName": "[concat(variables('virtualMachineName'),'-ip')]",
+		"adminUsername": "usr",
+		"adminPassword": ""
     },
     "resources": [
         {
@@ -27,15 +23,13 @@
             "apiVersion": "2016-03-30",
             "location": "westeurope",
             "dependsOn": [
-                "[concat('Microsoft.Network/networkInterfaces/', variables('networkInterfaceName'))]",
-                "'Microsoft.Storage/storageAccounts/mpsitdisks'",
-                "'Microsoft.Storage/storageAccounts/mpsitdiag'"
+                "[concat('Microsoft.Network/networkInterfaces/', variables('networkInterfaceName'))]"
             ],
             "properties": {
                 "osProfile": {
                     "computerName": "[variables('virtualMachineName')]",
-                    "adminUsername": "[parameters('adminUsername')]",
-                    "adminPassword": "[parameters('adminPassword')]"
+                    "adminUsername": "[variables('adminUsername')]",
+                    "adminPassword": "[variables('adminPassword')]"
                 },
                 "hardwareProfile": {
                     "vmSize": "Basic_A1"
@@ -50,7 +44,7 @@
                     "osDisk": {
                         "name": "[variables('virtualMachineName')]",
                         "createOption": "fromImage",
-                        "vhd": {
+                        "vhd": {						
                             "uri": "[concat(concat(reference(resourceId('mpsit', 'Microsoft.Storage/storageAccounts','mpsitdisks'), '2015-06-15').primaryEndpoints['blob'], 'vhds/'), variables('virtualMachineName'), '-osDisk.vhd')]"
                         }
                     },
@@ -70,49 +64,13 @@
                     }
                 }
             }
-        },
-        {
-            "name": "mpsitdisks",
-            "type": "Microsoft.Storage/storageAccounts",
-            "apiVersion": "2015-06-15",
-            "location": "westeurope",
-            "properties": {
-                "accountType": "Standard_LRS"
-            }
-        },
-        "osProfile": {
-          "computerName": "[variables('vmName')]",
-          "adminUsername": "usr",
-          "adminPassword": ""
-        },
-        {
-            "name": "mpsit-vn",
-            "type": "Microsoft.Network/virtualNetworks",
-            "apiVersion": "2016-09-01",
-            "location": "westeurope",
-            "properties": {
-                "addressSpace": {
-                    "addressPrefixes": [
-                        "10.0.0.0/24"
-                    ]
-                },
-                "subnets": [
-                    {
-                        "name": "default",
-                        "properties": {
-                            "addressPrefix": "10.0.0.0/24"
-                        }
-                    }
-                ]
-            }
-        },
+        },        
         {
             "name": "[variables('networkInterfaceName')]",
             "type": "Microsoft.Network/networkInterfaces",
             "apiVersion": "2016-09-01",
             "location": "westeurope",
-            "dependsOn": [
-                "'Microsoft.Network/virtualNetworks/mpsit-vn'",
+            "dependsOn": [                
                 "[concat('Microsoft.Network/publicIpAddresses/', variables('publicIpAddressName'))]",
                 "[concat('Microsoft.Network/networkSecurityGroups/', variables('networkSecurityGroupName'))]"
             ],
@@ -201,8 +159,7 @@
     "outputs": {
         "adminUsername": {
             "type": "string",
-            "value": "[parameters('adminUsername')]"
+            "value": "[variables('adminUsername')]"
         }
     }
-  ]
 }
