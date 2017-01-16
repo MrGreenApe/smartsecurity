@@ -1,135 +1,211 @@
 {
-  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
-  "contentVersion": "1.0.0.0",
-  "parameters": {
-    "customVmName": {
-      "type": "string",
-      "metadata": {
-        "description": "This is the name of the your VM"
-      }
-    },	    
-    "dnsLabelPrefix": {
-      "type": "string",
-      "metadata": {
-        "description": "DNS Label for the Public IP. Must be lowercase. It should match with the following regular expression: ^[a-z][a-z0-9-]{1,61}[a-z0-9]$ or it will raise an error."
-      }
-    }
-  },
-  "variables": {
-    "publicIPAddressName": "[concat(parameters('customVmName'),'-ip')]",
-    "vmName": "[parameters('customVmName')]",
-    "nicName": "[concat(parameters('customVmName'),'-ni')]",
-    "publicIPAddressType": "Dynamic",
-    "apiVersion": "2015-06-15",
-    "templatelink": "[concat('https://raw.githubusercontent.com/singhkay/azure-quickstart-templates/master/101-vm-from-user-image/existingvnet.json')]"
-  },
-  "resources": [
-    {
-            "apiVersion": "2015-01-01",
-            "name": "vnet-template",
-            "type": "Microsoft.Resources/deployments",
+    "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "vmNo": {
+            "type": "int"
+        },
+        "adminUsername": {
+            "type": "string"
+        },                                
+        "adminPassword": {
+            "type": "securestring"
+        },                                                
+    },
+    "variables": {		
+		"virtualMachineName": "[concat('smart-node',parameters('vmNo'))]",
+        "vnetId": "[resourceId('mpsit','Microsoft.Network/virtualNetworks', 'mpsit-vn')]",
+        "subnetRef": "[concat(variables('vnetId'), '/subnets/default')]",
+		"networkInterfaceName": "[concat(variables('virtualMachineName'),'-ni')]",
+		"networkSecurityGroupName": "[concat(variables('virtualMachineName'),'-nsg')]",
+		"publicIpAddressName": "[concat(variables('virtualMachineName'),'-ip')]"
+    },
+    "resources": [
+        {
+            "name": "[variables('virtualMachineName')]",
+            "type": "Microsoft.Compute/virtualMachines",
+            "apiVersion": "2016-03-30",
+            "location": "westeurope",
+            "dependsOn": [
+                "[concat('Microsoft.Network/networkInterfaces/', variables('networkInterfaceName'))]",
+                "'Microsoft.Storage/storageAccounts/mpsitdisks'",
+                "'Microsoft.Storage/storageAccounts/mpsitdiag'"
+            ],
             "properties": {
-                "mode": "incremental",
-                "templateLink": {
-                    "uri": "[variables('templatelink')]",
-                    "contentVersion": "1.0.0.0"
+                "osProfile": {
+                    "computerName": "[variables('virtualMachineName')]",
+                    "adminUsername": "[parameters('adminUsername')]",
+                    "adminPassword": "[parameters('adminPassword')]"
                 },
-                "parameters": {
-                    "virtualNetworkName": {
-                        "value": "encryption-group-vnet"
+                "hardwareProfile": {
+                    "vmSize": "Basic_A1"
+                },
+                "storageProfile": {
+                    "imageReference": {
+                        "publisher": "Canonical",
+                        "offer": "UbuntuServer",
+                        "sku": "16.04.0-LTS",
+                        "version": "latest"
                     },
-                    "subnetName": {
-                        "value": "default"
+                    "osDisk": {
+                        "name": "[variables('virtualMachineName')]",
+                        "createOption": "fromImage",
+                        "vhd": {
+                            "uri": "[concat(concat(reference(resourceId('mpsit', 'Microsoft.Storage/storageAccounts','mpsitdisks'), '2015-06-15').primaryEndpoints['blob'], 'vhds/'), variables('virtualMachineName'), '-osDisk.vhd')]"
+                        }
                     },
-                    "existingVnetResourceGroupName": {
-                        "value": "encryption-group"
+                    "dataDisks": []
+                },
+                "networkProfile": {
+                    "networkInterfaces": [
+                        {
+                            "id": "[resourceId('Microsoft.Network/networkInterfaces', variables('networkInterfaceName'))]"
+                        }
+                    ]
+                },
+                "diagnosticsProfile": {
+                    "bootDiagnostics": {
+                        "enabled": true,
+                        "storageUri": "[reference(resourceId('mpsit', 'Microsoft.Storage/storageAccounts','mpsitdiag'), '2015-06-15').primaryEndpoints['blob']]"
                     }
                 }
             }
         },
-    {
-      "apiVersion": "[variables('apiVersion')]",
-      "type": "Microsoft.Network/publicIPAddresses",
-      "name": "[variables('publicIPAddressName')]",
-      "location": "[resourceGroup().location]",
-      "properties": {
-        "publicIPAllocationMethod": "[variables('publicIPAddressType')]",
-        "dnsSettings": {
-          "domainNameLabel": "[parameters('dnsLabelPrefix')]"
-        }
-      }
-    },
-    {
-      "apiVersion": "2016-03-30",
-      "type": "Microsoft.Network/networkInterfaces",
-      "name": "[variables('nicName')]",
-      "location": "[resourceGroup().location]",
-      "dependsOn": [
-        "[concat('Microsoft.Network/publicIPAddresses/', variables('publicIPAddressName'))]",
-        "Microsoft.Resources/deployments/vnet-template"
-      ],
-      "properties": {
-        "ipConfigurations": [
-          {
-            "name": "ipconfig1",
+        {
+            "name": "mpsitdisks",
+            "type": "Microsoft.Storage/storageAccounts",
+            "apiVersion": "2015-06-15",
+            "location": "westeurope",
             "properties": {
-              "privateIPAllocationMethod": "Dynamic",
-              "publicIPAddress": {
-                "id": "[resourceId('Microsoft.Network/publicIPAddresses',variables('publicIPAddressName'))]"
-              },
-              "subnet": {
-                "id": "[reference('vnet-template').outputs.subnet1Ref.value]"
-              }
+                "accountType": "Standard_LRS"
             }
-          }
-        ]
-      }
-    },
-    {
-      "apiVersion": "[variables('apiVersion')]",
-      "type": "Microsoft.Compute/virtualMachines",
-      "name": "[variables('vmName')]",
-      "location": "[resourceGroup().location]",
-      "dependsOn": [
-        "[concat('Microsoft.Network/networkInterfaces/', variables('nicName'))]"
-      ],
-      "properties": {
-        "hardwareProfile": {
-          "vmSize": "Basic_A1"
         },
-        "osProfile": {
-          "computerName": "[variables('vmName')]",
-          "adminUsername": "usr",
-          "adminPassword": "km0InKlzrPrr5q314FK3ZfTt5"
-        },
-        "storageProfile": {
-          "osDisk": {
-            "name": "[concat(variables('vmName'),'-osDisk')]",
-            "osType": "Linux",
-            "caching": "ReadWrite",
-            "createOption": "FromImage",
-            "image": {
-              "uri": "https://encryptiongroupdisks.blob.core.windows.net/system/Microsoft.Compute/Images/vhds/encryption-node-osDisk.83cbd123-d6b0-41fe-8d3f-defcdb7c61c0.vhd"
-            },
-            "vhd": {
-              "uri": "[concat(reference(resourceId('encryption-group', 'Microsoft.Storage/storageAccounts/', 'encryptiongroupdisks'), variables('apiVersion')).primaryEndpoints.blob, 'vhds/',variables('vmName'), uniquestring(resourceGroup().id), 'osDisk.vhd')]"
+        {
+            "name": "mpsitdiag",
+            "type": "Microsoft.Storage/storageAccounts",
+            "apiVersion": "2015-06-15",
+            "location": "westeurope",
+            "properties": {
+                "accountType": "Standard_LRS"
             }
-          }
         },
-        "networkProfile": {
-          "networkInterfaces": [
-            {
-              "id": "[resourceId('Microsoft.Network/networkInterfaces',variables('nicName'))]"
+        {
+            "name": "mpsit-vn",
+            "type": "Microsoft.Network/virtualNetworks",
+            "apiVersion": "2016-09-01",
+            "location": "westeurope",
+            "properties": {
+                "addressSpace": {
+                    "addressPrefixes": [
+                        "10.0.0.0/24"
+                    ]
+                },
+                "subnets": [
+                    {
+                        "name": "default",
+                        "properties": {
+                            "addressPrefix": "10.0.0.0/24"
+                        }
+                    }
+                ]
             }
-          ]
         },
-        "diagnosticsProfile": {
-          "bootDiagnostics": {
-            "enabled": "true",
-            "storageUri": "[concat(reference(resourceId('encryption-group', 'Microsoft.Storage/storageAccounts/', 'encryptiongroupdiag'), variables('apiVersion')).primaryEndpoints.blob)]"
-          }
+        {
+            "name": "[variables('networkInterfaceName')]",
+            "type": "Microsoft.Network/networkInterfaces",
+            "apiVersion": "2016-09-01",
+            "location": "westeurope",
+            "dependsOn": [
+                "'Microsoft.Network/virtualNetworks/mpsit-vn'",
+                "[concat('Microsoft.Network/publicIpAddresses/', variables('publicIpAddressName'))]",
+                "[concat('Microsoft.Network/networkSecurityGroups/', variables('networkSecurityGroupName'))]"
+            ],
+            "properties": {
+                "ipConfigurations": [
+                    {
+                        "name": "ipconfig1",
+                        "properties": {
+                            "subnet": {
+                                "id": "[variables('subnetRef')]"
+                            },
+                            "privateIPAllocationMethod": "Dynamic",
+                            "publicIpAddress": {
+                                "id": "[resourceId('mpsit','Microsoft.Network/publicIpAddresses', variables('publicIpAddressName'))]"
+                            }
+                        }
+                    }
+                ],
+                "networkSecurityGroup": {
+                    "id": "[resourceId('mpsit', 'Microsoft.Network/networkSecurityGroups', variables('networkSecurityGroupName'))]"
+                }
+            }
+        },
+        {
+            "name": "[variables('publicIpAddressName')]",
+            "type": "Microsoft.Network/publicIpAddresses",
+            "apiVersion": "2016-09-01",
+            "location": "westeurope",
+            "properties": {
+                "publicIpAllocationMethod": "Dynamic",
+				"dnsSettings": {
+					"domainNameLabel": "[variables('virtualMachineName')]"
+				}
+            }
+        },
+        {
+            "name": "[variables('networkSecurityGroupName')]",
+            "type": "Microsoft.Network/networkSecurityGroups",
+            "apiVersion": "2016-09-01",
+            "location": "westeurope",
+            "properties": {
+                "securityRules": [
+                    {
+                        "name": "default-allow-ssh",
+                        "properties": {
+                            "priority": 1000,
+                            "sourceAddressPrefix": "*",
+                            "protocol": "TCP",
+                            "destinationPortRange": "22",
+                            "access": "Allow",
+                            "direction": "Inbound",
+                            "sourcePortRange": "*",
+                            "destinationAddressPrefix": "*"
+                        }
+                    },
+					{
+                        "name": "port-map",
+                        "properties": {
+                            "priority": 1010,
+                            "sourceAddressPrefix": "*",
+                            "protocol": "TCP",
+                            "destinationPortRange": "2049",
+                            "access": "Allow",
+                            "direction": "Inbound",
+                            "sourcePortRange": "*",
+                            "destinationAddressPrefix": "*"
+                        }
+                    },
+					{
+                        "name": "port-nfs",
+                        "properties": {
+                            "priority": 1020,
+                            "sourceAddressPrefix": "*",
+                            "protocol": "TCP",
+                            "destinationPortRange": "111",
+                            "access": "Allow",
+                            "direction": "Inbound",
+                            "sourcePortRange": "*",
+                            "destinationAddressPrefix": "*"
+                        }
+                    }
+                ]
+            }
         }
-      }
+    ],
+    "outputs": {
+        "adminUsername": {
+            "type": "string",
+            "value": "[parameters('adminUsername')]"
+        }
     }
-  ]
 }
